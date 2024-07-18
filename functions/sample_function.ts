@@ -1,5 +1,4 @@
 import { DefineFunction, Schema, SlackFunction } from "deno-slack-sdk/mod.ts";
-import SampleObjectDatastore from "../datastores/sample_datastore.ts";
 
 /**
  * Functions are reusable building blocks of automation that accept
@@ -51,70 +50,13 @@ export default SlackFunction(
   SampleFunctionDefinition,
   async ({ inputs, client }) => {
     console.log("Forwarding the following time off request:", inputs);
+    try {
+      // ...
 
-    // ...
+      // Send the message to the manager
 
-    // Send the message to the manager
-    const joinChannelRes = await client.conversations.join({
-      channel: inputs.channel,
-      // Fallback text to use when rich media can't be displayed (i.e. notifications) as well as for screen readers
-    });
-
-    if (!joinChannelRes.ok) {
-      console.log(
-        "Error during request conversations.join!",
-        joinChannelRes.error,
-      );
-    }
-
-    let historyRes = await client.conversations.history({
-      channel: inputs.channel,
-      // Fallback text to use when rich media can't be displayed (i.e. notifications) as well as for screen readers
-    });
-
-    if (!historyRes.ok) {
-      console.log(
-        "Error during request conversations.history!",
-        historyRes.error,
-      );
-    }
-    console.log(`fetching from ${inputs.channel}`);
-
-    const messages = (historyRes.messages as Array<
-      { user: string; object_id: string; text: string; ts: string }
-    >).map((it) => {
-      console.log(it);
-      return {
-        user: it.user.toString(),
-        message: it.text.toString(),
-        object_id: crypto.randomUUID().toString(),
-      };
-    });
-    while (messages.length > 0) {
-      const putResp = await client.apps.datastore.bulkPut<
-        typeof SampleObjectDatastore.definition
-      >({
-        datastore: SampleObjectDatastore.name,
-        items: messages.splice(0, Math.min(messages.length, 25)),
-      });
-
-      if (!putResp.ok) {
-        console.log(
-          "Error during request datastore.bulkPu!",
-          putResp.error,
-        );
-      }
-
-      console.log(messages.length);
-    }
-
-    for (let i = 0; i < 2; i++) {
-      if (!historyRes.response_metadata?.next_cursor) {
-        break;
-      }
-      historyRes = await client.conversations.history({
+      let historyRes = await client.conversations.history({
         channel: inputs.channel,
-        cursor: historyRes.response_metadata.next_cursor,
         // Fallback text to use when rich media can't be displayed (i.e. notifications) as well as for screen readers
       });
 
@@ -124,79 +66,113 @@ export default SlackFunction(
           historyRes.error,
         );
       }
-      console.log(`fetching from ${inputs.channel}`);
 
-      const messages = (historyRes.messages as Array<
-        Message
-      >).map((it) => {
-        return {
-          user: it.user.toString(),
-          message: it.text.toString(),
-          object_id: crypto.randomUUID().toString(),
-          reply_count: it.reply_count,
-          thread_ts: it.thread_ts,
-        };
-      });
-
-      while (messages.length > 0) {
-        const msgs = messages.splice(0, Math.min(messages.length, 25)).map(
-          async (it) => {
-            let message: {
-              message: string;
-              object_id: string;
-              replies?: Array<string>;
-            } = {
-              message: it.message,
-              object_id: it.object_id,
-            };
-
-            if (it.reply_count > 0) {
-              const repliesRes = await client.conversations.replies({
-                channel: inputs.channel,
-                ts: it.thread_ts,
-                // Fallback text to use when rich media can't be displayed (i.e. notifications) as well as for screen readers
-              });
-              if (!repliesRes.ok) {
-                console.log("Error getting replies", repliesRes.error);
-                return message;
-              }
-
-              message = {
-                ...message,
-                replies: (repliesRes.messages as Array<
-                  Message
-                >).reduce((acc, it) => {
-                  acc.push(it.text);
-                  return acc;
-                }, [] as Array<string>),
-              };
-            }
-            return message;
-          },
-        );
-        const putResp = await client.apps.datastore.bulkPut<
-          typeof SampleObjectDatastore.definition
-        >({
-          datastore: SampleObjectDatastore.name,
-          items: (await Promise.all(msgs)).map((it) => {
-            return {
-              ...it,
-              replies: it.replies
-                ? it.replies.join(`
-              `)
-                : "",
-            };
-          }),
+      for (let i = 0; i < 2; i++) {
+        if (!historyRes.response_metadata?.next_cursor) {
+          break;
+        }
+        historyRes = await client.conversations.history({
+          channel: inputs.channel,
+          cursor: historyRes.response_metadata.next_cursor,
+          // Fallback text to use when rich media can't be displayed (i.e. notifications) as well as for screen readers
         });
 
-        if (!putResp.ok) {
+        if (!historyRes.ok) {
           console.log(
-            "Error during request datastore.bulkPu!",
-            putResp.error,
+            "Error during request conversations.history!",
+            historyRes.error,
           );
         }
-        console.log(messages.length);
+
+        const messages = (historyRes.messages as Array<
+          Message
+        >).map((it) => {
+          return {
+            user: it.user.toString(),
+            message: it.text.toString(),
+            object_id: crypto.randomUUID().toString(),
+            reply_count: it.reply_count,
+            thread_ts: it.thread_ts,
+          };
+        });
+
+        while (messages.length > 0) {
+          const msgs = messages.splice(0, Math.min(messages.length, 25)).map(
+            async (it) => {
+              let message: {
+                message: string;
+                object_id: string;
+                replies?: Array<string>;
+              } = {
+                message: it.message,
+                object_id: it.object_id,
+              };
+
+              if (it.reply_count > 0) {
+                const repliesRes = await client.conversations.replies({
+                  channel: inputs.channel,
+                  ts: it.thread_ts,
+                  // Fallback text to use when rich media can't be displayed (i.e. notifications) as well as for screen readers
+                });
+                if (!repliesRes.ok) {
+                  console.log("Error getting replies", repliesRes.error);
+                  return message;
+                }
+
+                message = {
+                  ...message,
+                  replies: (repliesRes.messages as Array<
+                    Message
+                  >).reduce((acc, it) => {
+                    acc.push(it.text);
+                    return acc;
+                  }, [] as Array<string>),
+                };
+              }
+              return message;
+            },
+          );
+
+          console.log("got replies, sending to google");
+          const reqBody = {
+            instances: (await Promise.all(msgs)).map((it) => {
+              return {
+                task_type: "RETRIEVAL_DOCUMENT",
+                title: it.message,
+                content: it.replies
+                  ? it.replies.join(`
+              `)
+                  : it.message,
+              };
+            }).filter((it) => it.content != "" && it.title != ""),
+          };
+
+          const aiRes = await fetch(
+            "https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0765264100/locations/us-central1/publishers/google/models/text-embedding-004:predict",
+            {
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer REPLACE WITH UR ACCESS TOKEN",
+              },
+              method: "POST",
+              body: (JSON.stringify(reqBody)),
+            },
+          );
+          if (!aiRes.ok) {
+            console.log(
+              "Error during request api embed!",
+              await aiRes.json(),
+            );
+            continue;
+          }
+          const rs = await aiRes.text();
+          await Deno.writeTextFile("./hello.json", rs);
+          //console.log(
+          //rs          );
+        }
       }
+    } catch (e) {
+      console.log("exception", e);
     }
 
     // IMPORTANT! Set `completed` to false in order to keep the interactivity

@@ -1,5 +1,6 @@
 {
   "hooks": {
-    "get-hooks": "deno run -q  --allow-read --allow-net https://deno.land/x/deno_slack_hooks@1.3.0/mod.ts"
+    "get-hooks": "deno run -q  --allow-read --allow-net https://deno.land/x/deno_slack_hooks@1.3.0/mod.ts",
+    "start": "deno run --config=deno.jsonc --allow-run --allow-read --allow-net file:////Users/adil/WebstormProjects/slack-chat/deno-slack-runtime/src/local-run.ts"
   }
 }

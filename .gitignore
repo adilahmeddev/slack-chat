@@ -1,4 +1,5 @@
 dist
+hello.json
 package
 .DS_Store
 .slack/apps.dev.json
