@@ -1,0 +1,3 @@
+[submodule "deno-slack-runtime"]
+	path = deno-slack-runtime
+	url = https://github.com/adilahmeddev/deno-slack-runtime
